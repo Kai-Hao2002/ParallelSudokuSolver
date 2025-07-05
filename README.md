@@ -27,3 +27,7 @@ mkdir build
 cd build
 cmake ..
 ninja
+
+ctest
+./sudoku ../data/puzzles.txt
+./tests/test_solver.exe

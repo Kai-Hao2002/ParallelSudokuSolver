@@ -11,3 +11,4 @@ target_link_libraries(test_solver
 
 enable_testing()
 add_test(NAME SudokuSolverTest COMMAND test_solver)
+

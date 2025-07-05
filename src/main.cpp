@@ -1,24 +1,26 @@
+#include "util.hpp"
 #include "sudoku.hpp"
 #include <iostream>
 
-int main() {
-    std::vector<std::vector<int>> puzzle = {
-        {5, 3, 0, 0, 7, 0, 0, 0, 0},
-        {6, 0, 0, 1, 9, 5, 0, 0, 0},
-        {0, 9, 8, 0, 0, 0, 0, 6, 0},
-        {8, 0, 0, 0, 6, 0, 0, 0, 3},
-        {4, 0, 0, 8, 0, 3, 0, 0, 1},
-        {7, 0, 0, 0, 2, 0, 0, 0, 6},
-        {0, 6, 0, 0, 0, 0, 2, 8, 0},
-        {0, 0, 0, 4, 1, 9, 0, 0, 5},
-        {0, 0, 0, 0, 8, 0, 0, 7, 9}
-    };
-
-    SudokuSolver solver(puzzle);
-    if (solver.solve_sequential()) {
-        std::cout << "Solved:\n";
-        solver.print();
-    } else {
-        std::cout << "No solution.\n";
+int main(int argc, char* argv[]) {
+    std::string filename = "data/puzzles.txt";
+    if (argc > 1) {
+        filename = argv[1];
     }
+
+    try {
+        auto puzzles = load_puzzles(filename);
+        for (size_t i = 0; i < puzzles.size(); ++i) {
+            SudokuSolver solver(puzzles[i]);
+            bool solved = solver.solve_sequential();
+            std::cout << "Puzzle " << (i + 1) << (solved ? " solved." : " not solved.") << "\n";
+            solver.print();
+            std::cout << "-----------------------\n";
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+
+    return 0;
 }
