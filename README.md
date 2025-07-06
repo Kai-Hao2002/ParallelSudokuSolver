@@ -34,3 +34,5 @@ ctest
 ./sudoku -s ../data/puzzles.txt
 ./sudoku -p ../data/puzzles.txt
 
+./tests/benchmark_solver.exe ../data/puzzles.txt
+./tests/benchmark_solver.exe -a -m 100000 ../data/puzzles.txt

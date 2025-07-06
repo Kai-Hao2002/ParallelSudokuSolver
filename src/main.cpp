@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 
             } else if (mode == "parallel") {
                 ParallelSudokuSolver solver(puzzles[i]);
-                solved = solver.solve();
+                solved = solver.solve_single();
                 auto end = std::chrono::high_resolution_clock::now();
                 std::cout << (solved ? "Solved (Parallel)." : "Not solved.") << "\n";
                 solver.print();

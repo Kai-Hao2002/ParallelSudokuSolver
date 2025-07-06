@@ -33,7 +33,7 @@ void test_puzzle(const std::vector<std::vector<int>>& puzzle, bool should_have_s
     }
     {
         ParallelSudokuSolver solver(puzzle);
-        bool solved = solver.solve();
+        bool solved = solver.solve_single();
         EXPECT_EQ(solved, should_have_solution);
         auto result = solver.get_solution();
         if (should_have_solution) {
@@ -62,18 +62,20 @@ TEST(SudokuSolverTest, EasyPuzzle) {
 
 TEST(SudokuSolverTest, MediumPuzzle) {
     std::vector<std::vector<int>> puzzle = {
-        {0,0,0,0,0,0,0,1,2},
-        {0,0,0,0,0,0,0,0,0},
-        {0,0,1,0,0,5,0,0,0},
-        {0,7,0,0,0,0,2,0,0},
-        {0,0,0,0,6,0,0,0,0},
-        {0,0,3,0,0,0,0,5,0},
-        {0,0,0,2,0,0,3,0,0},
-        {0,0,0,0,0,0,0,0,0},
-        {8,9,0,0,0,0,0,0,0}
+        {0,0,0,0,6,0,0,0,3},
+        {0,0,0,1,0,0,0,7,0},
+        {0,0,0,0,0,5,0,0,9},
+        {0,0,0,7,0,0,0,0,0},
+        {4,0,9,0,0,0,2,0,5},
+        {0,0,0,0,0,6,0,0,0},
+        {2,0,0,3,0,0,0,0,0},
+        {0,9,0,0,0,7,0,0,0},
+        {1,0,0,0,8,0,0,0,0}
     };
     test_puzzle(puzzle, true);
 }
+
+
 
 TEST(SudokuSolverTest, HardPuzzle) {
     std::vector<std::vector<int>> puzzle = {
