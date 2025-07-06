@@ -106,3 +106,8 @@ void SudokuSolver::print() const {
         std::cout << "\n";
     }
 }
+
+void SudokuSolver::set_cell(int row, int col, int value) {
+    grid[row][col] = value;
+    candidates[row][col].clear();
+}

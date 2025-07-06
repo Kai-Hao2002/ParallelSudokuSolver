@@ -11,7 +11,7 @@ include_directories(third_party/taskflow)
 include_directories(include)
 
 # Main executable
-add_executable(sudoku src/main.cpp src/sudoku.cpp src/util.cpp)
+add_executable(sudoku src/main.cpp src/sudoku.cpp src/util.cpp src/parallel_solver.cpp)
 
 include(FetchContent)
 

@@ -29,5 +29,8 @@ cmake ..
 ninja
 
 ctest
-./sudoku ../data/puzzles.txt
 ./tests/test_solver.exe
+
+./sudoku -s ../data/puzzles.txt
+./sudoku -p ../data/puzzles.txt
+
