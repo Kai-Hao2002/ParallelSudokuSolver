@@ -1,29 +1,46 @@
-cmake_minimum_required(VERSION 3.10)
-project(SudokuSolver)
+#CMakeLists
+cmake_minimum_required(VERSION 3.14)
+project(ParallelSudokuSolver)
 
+# C++17
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O2 -fopenmp")
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add Taskflow
-include_directories(third_party/taskflow)
+#  include/ sub_directories
+include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/external/taskflow/)
 
-# Include headers
-include_directories(include)
 
-# Main executable
-add_executable(sudoku src/main.cpp src/sudoku.cpp src/util.cpp src/parallel_solver.cpp)
+# add Taskflow (external/taskflow）
+add_subdirectory(external/taskflow)
 
+# collect files
+file(GLOB_RECURSE CORE_SRC src/core/*.cpp)
+file(GLOB_RECURSE SOLVER_SRC src/solver/*.cpp)
+file(GLOB_RECURSE IO_SRC src/io/*.cpp)
+set(SOURCES ${CORE_SRC} ${SOLVER_SRC} ${IO_SRC} src/main.cpp)
+
+# set up main
+add_executable(ParallelSudokuSolver ${SOURCES})
+target_include_directories(ParallelSudokuSolver PRIVATE external/taskflow/include)
+
+# ===============================
+# Catch2 Unit Tests
+# ===============================
 include(FetchContent)
-
-# Download and make GoogleTest available
 FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  Catch2
+  GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+  GIT_TAG        v3.5.4 
 )
+FetchContent_MakeAvailable(Catch2)
 
-FetchContent_MakeAvailable(googletest)
+# test files
+file(GLOB_RECURSE TEST_SRC tests/*.cpp)
+add_executable(tests ${TEST_SRC})
+target_link_libraries(tests Catch2::Catch2WithMain)
 
-# Add tests
 enable_testing()
-add_subdirectory(tests)
+include(CTest)
+include(Catch)
+catch_discover_tests(tests)

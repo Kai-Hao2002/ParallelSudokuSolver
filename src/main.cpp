@@ -1,65 +1,74 @@
-#include "util.hpp"
-#include "sudoku.hpp"
-#include "parallel_solver.hpp"
+// src/main.cpp
+#include <memory>
 #include <iostream>
-#include <chrono>
+#include "core/Sudoku.hpp"
+#include "io/FileIO.hpp"
+#include "io/ArgumentParser.hpp"
+#include "solver/BacktrackingSolver.hpp"
+#include "solver/BruteForceSolver.hpp"
+#include "solver/DLXSolver.hpp"
+#include "solver/ParallelBacktrackingSolver.hpp"
+#include "solver/ParallelBruteForceSolver.hpp"
+#include "solver/ParallelDLXSolver.hpp"
 
 int main(int argc, char* argv[]) {
-    std::string filename = "data/puzzles.txt";
-    std::string mode = "sequential"; // default
-
-    // Parse CLI arguments
-    for (int i = 1; i < argc; ++i) {
-        std::string arg = argv[i];
-        if (arg == "--sequential" || arg == "-s") {
-            mode = "sequential";
-        } else if (arg == "--parallel" || arg == "-p") {
-            mode = "parallel";
-        } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Usage: " << argv[0] << " [--sequential | --parallel] [puzzle_file]\n";
-            std::cout << "Default: sequential mode with puzzles from data/puzzles.txt\n";
-            return 0;
-        } else {
-            filename = arg;
-        }
+    // parse instruction
+    ParsedArgs args = ArgumentParser::parse(argc, argv);
+    if (!args.valid) {
+        std::cerr << "Invalid arguments.\n";
+        return 1;
     }
 
-    try {
-        auto puzzles = load_puzzles(filename);
-        for (size_t i = 0; i < puzzles.size(); ++i) {
-            std::cout << "Puzzle " << (i + 1) << "...\n";
+    Sudoku sudoku;  // 9x9 default
 
-            auto start = std::chrono::high_resolution_clock::now();
-            bool solved = false;
-
-            if (mode == "sequential") {
-                SudokuSolver solver(puzzles[i]);
-                solved = solver.solve_sequential();
-                auto end = std::chrono::high_resolution_clock::now();
-                std::cout << (solved ? "Solved (Sequential)." : "Not solved.") << "\n";
-                solver.print();
-                std::chrono::duration<double> elapsed = end - start;
-                std::cout << "Time: " << elapsed.count() << "s\n";
-
-            } else if (mode == "parallel") {
-                ParallelSudokuSolver solver(puzzles[i]);
-                solved = solver.solve_single();
-                auto end = std::chrono::high_resolution_clock::now();
-                std::cout << (solved ? "Solved (Parallel)." : "Not solved.") << "\n";
-                solver.print();
-                std::chrono::duration<double> elapsed = end - start;
-                std::cout << "Time: " << elapsed.count() << "s\n";
-
-            } else {
-                std::cerr << "Unknown mode: " << mode << "\n";
-                return 1;
-            }
-
-            std::cout << "-----------------------\n";
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
+    // read board
+    if (!FileIO::loadSudokuFromFile(sudoku, args.inputFile)) {
+        std::cerr << "Failed to load sudoku from file: " << args.inputFile << "\n";
         return 1;
+    }
+
+    std::cout << "Input Sudoku:\n";
+    sudoku.print();
+
+    // choose sudoku solver
+    std::unique_ptr<SolverBase> solver;
+    switch (args.mode) {
+        case 0:
+            solver = std::make_unique<BacktrackingSolver>(args.numThreads);
+            break;
+        case 1:
+            solver = std::make_unique<BruteForceSolver>(args.numThreads);
+            break;
+        case 2:
+            solver = std::make_unique<DLXSolver>(args.numThreads);
+            break;
+        case 3:
+            solver = std::make_unique<ParallelBacktrackingSolver>(args.numThreads);
+            break;
+        case 4:
+            solver = std::make_unique<ParallelBruteForceSolver>(args.numThreads);
+            break;
+        case 5:
+            solver = std::make_unique<ParallelDLXSolver>(args.numThreads);
+            break;
+        default:
+            std::cerr << "Unknown solver mode.\n";
+            return 1;
+    }
+
+    if (!solver->solve(sudoku)) {
+        std::cerr << "Failed to solve sudoku.\n";
+        return 1;
+    }
+
+    std::cout << "Solved Sudoku:\n";
+    sudoku.print();
+
+    if (args.writeToFile) {
+        if (!FileIO::writeSolutionToFile(sudoku, "solution.txt")) {
+            std::cerr << "Failed to write solution to file.\n";
+            return 1;
+        }
     }
 
     return 0;
