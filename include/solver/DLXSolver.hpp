@@ -40,4 +40,8 @@ private:
     void uncover(ColumnNode* c);
     bool search(int k);
     int sudokuToIndex(int row, int col, int num) const;
+    Sudoku sudoku_; // Save the currently solved Sudoku 
+
+    int size;     // Sudoku size
+    int boxSize;  
 };

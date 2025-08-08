@@ -9,3 +9,5 @@ ninja
 
 ex:
 ./ParallelSudokuSolver -m 5   -t 2 -i ../Test_Cases/9x9_easy.txt -w
+
+./benchmark.exe

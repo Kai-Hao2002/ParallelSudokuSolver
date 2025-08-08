@@ -15,7 +15,7 @@ bool ParallelBruteForceSolver::solve(Sudoku& sudoku) {
     tf::Executor executor(numThreads_);
 
     std::atomic<bool> solved(false);
-    std::mutex mtx;  // 保護 sudoku
+    std::mutex mtx;  // Protect sudoku
 
     auto size = sudoku.getSize();
 
@@ -42,9 +42,9 @@ bool ParallelBruteForceSolver::solve(Sudoku& sudoku) {
 
             taskflow.emplace([&sudoku, &bruteForce, &solved, &mtx, boardCopy]() mutable {
                 if (bruteForce(boardCopy, 1)) {
-                    if (!solved.exchange(true)) { // 第一個找到解的任務執行
+                    if (!solved.exchange(true)) { // The first task to find a solution is executed
                         std::lock_guard<std::mutex> lock(mtx);
-                        sudoku = boardCopy; // 將解拷貝回傳入參數
+                        sudoku = boardCopy; //Copy the solution back to the passed parameter
                     }
                 }
             });

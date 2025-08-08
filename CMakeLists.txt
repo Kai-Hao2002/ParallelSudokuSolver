@@ -37,10 +37,35 @@ FetchContent_MakeAvailable(Catch2)
 
 # test files
 file(GLOB_RECURSE TEST_SRC tests/*.cpp)
-add_executable(tests ${TEST_SRC})
+add_executable(tests ${TEST_SRC} ${CORE_SRC} ${SOLVER_SRC} ${IO_SRC})
+target_include_directories(tests PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_SOURCE_DIR}/external/taskflow/include
+)
 target_link_libraries(tests Catch2::Catch2WithMain)
+add_custom_command(
+    TARGET tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            ${CMAKE_SOURCE_DIR}/Test_Cases
+            ${CMAKE_BINARY_DIR}/Test_Cases
+)
 
 enable_testing()
 include(CTest)
 include(Catch)
 catch_discover_tests(tests)
+
+# ===============================
+# Benchmark Executable
+# ===============================
+
+# collect benchmark files
+file(GLOB_RECURSE BENCHMARK_SRC src/benchmark/*.cpp)
+set(BENCHMARK_MAIN src/main_benchmark.cpp)
+add_executable(benchmark ${BENCHMARK_MAIN} ${BENCHMARK_SRC} ${CORE_SRC} ${SOLVER_SRC} ${IO_SRC})
+
+# include 
+target_include_directories(benchmark PRIVATE 
+    ${CMAKE_SOURCE_DIR}/include 
+    ${CMAKE_SOURCE_DIR}/external/taskflow/include
+)

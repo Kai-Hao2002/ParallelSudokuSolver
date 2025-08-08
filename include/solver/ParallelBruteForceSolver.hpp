@@ -8,6 +8,7 @@
 class ParallelBruteForceSolver : public SolverBase {
 public:
     ParallelBruteForceSolver(int numThreads = 2);
+    ParallelBruteForceSolver() : ParallelBruteForceSolver(2) {} 
 
     bool solve(Sudoku& sudoku) override;
     std::unique_ptr<SolverBase> clone() const override {

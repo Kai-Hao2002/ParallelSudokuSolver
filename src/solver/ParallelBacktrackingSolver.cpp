@@ -15,14 +15,14 @@ bool ParallelBacktrackingSolver::solve(Sudoku& sudoku) {
 
     std::atomic<bool> solved(false);
 
-    std::mutex mtx; // 保護 Sudoku 實例
-    Sudoku sudokuCopy = sudoku; // 避免直接操作原始棋盤
+    std::mutex mtx; // Protect the Sudoku instance
+    Sudoku sudokuCopy = sudoku; // Avoid direct manipulation of the original chessboard
 
     std::function<void(size_t, Sudoku&)> backtrack = [&](size_t index, Sudoku& board) {
         if (solved.load()) return;
         if (index == emptyCells.size()) {
             std::lock_guard<std::mutex> lock(mtx);
-            sudoku = board; // 複製結果回原盤
+            sudoku = board; // Copy the result back to the original disk
             solved.store(true);
             return;
         }
@@ -39,7 +39,7 @@ bool ParallelBacktrackingSolver::solve(Sudoku& sudoku) {
         }
     };
 
-    // 第一層分支並行化，創建多個任務
+    // Parallelize the first layer of branches and create multiple tasks
     for (int val = 1; val <= sudokuCopy.getSize(); ++val) {
         if (sudokuCopy.isValid(emptyCells[0].first, emptyCells[0].second, val)) {
             Sudoku boardCopy = sudokuCopy;

@@ -4,28 +4,25 @@
 #include <vector>
 #include <cstring>
 #include <iostream>
+#include <cmath>
 
 DLXSolver::DLXSolver()
-    : header(nullptr), nRows(0), nCols(0) {}
+    : header(nullptr), nRows(0), nCols(0), size(9), boxSize(3) {}
 
 int DLXSolver::sudokuToIndex(int row, int col, int num) const {
-    // return index 0~728 for 9x9 sudoku
-    return (row * 9 + col) * 9 + (num - 1);
+    // num starts from 1, so num-1
+    return (row * size + col) * size + (num - 1);
 }
 
 void DLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
-    /*
-    9x9 sudoku Exact Cover problem:
-    Rows = 9*9*9 = 729 (row,col,num)
-    Columns = 4*81 = 324 constraints:
-      - Cell constraint: each cell must be filled exactly once (81)
-      - Row constraint: each number appears once per row (81)
-      - Column constraint: each number appears once per column (81)
-      - Block constraint: each number appears once per block (81)
-    */
-    nRows = 9*9*9;
-    nCols = 324;
+    sudoku_ = sudoku;
+    size = sudoku.getSize();
+    boxSize = static_cast<int>(std::sqrt(size));
 
+    nRows = size * size * size;    // size^3
+    nCols = 4 * size * size;       // 4 * size^2
+
+    columnNodes.clear();
     columnNodes.resize(nCols);
     nodes.clear();
 
@@ -50,34 +47,35 @@ void DLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
         prev = &columnNodes[i];
     }
 
-    // Build nodes vector reserve
-    nodes.reserve(nRows * 4); // each row has 4 constraints
+    nodes.reserve(nRows * 4);
 
     // Helper lambdas for constraints
-    auto cellConstraint = [](int r, int c) { return r*9 + c; };
-    auto rowConstraint = [](int r, int num) { return 81 + r*9 + num - 1; };
-    auto colConstraint = [](int c, int num) { return 162 + c*9 + num - 1; };
-    auto blockConstraint = [](int r, int c, int num) {
-        int block = (r/3)*3 + (c/3);
-        return 243 + block*9 + num - 1;
+    auto cellConstraint = [this](int r, int c) {
+        return r * size + c;
+    };
+    auto rowConstraint = [this](int r, int num) {
+        return size * size + r * size + num - 1;
+    };
+    auto colConstraint = [this](int c, int num) {
+        return 2 * size * size + c * size + num - 1;
+    };
+    auto blockConstraint = [this](int r, int c, int num) {
+        int block = (r / boxSize) * boxSize + (c / boxSize);
+        return 3 * size * size + block * size + num - 1;
     };
 
-    // Create nodes for each row
-    for (int r = 0; r < 9; ++r) {
-        for (int c = 0; c < 9; ++c) {
-            for (int num = 1; num <= 9; ++num) {
+    for (int r = 0; r < size; ++r) {
+        for (int c = 0; c < size; ++c) {
+            int cellVal = sudoku.getValue(r, c);
+            for (int num = 1; num <= size; ++num) {
                 int rowIndex = sudokuToIndex(r, c, num);
-
-                // Check if cell fixed
-                int cellVal = sudoku.getValue(r, c);
                 if (cellVal != 0 && cellVal != num) continue;
 
-                // create 4 nodes for this row
                 int cols[4] = {
-                    cellConstraint(r,c),
-                    rowConstraint(r,num),
-                    colConstraint(c,num),
-                    blockConstraint(r,c,num)
+                    cellConstraint(r, c),
+                    rowConstraint(r, num),
+                    colConstraint(c, num),
+                    blockConstraint(r, c, num)
                 };
 
                 Node* rowNodes[4];
@@ -95,7 +93,7 @@ void DLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
                     rowNodes[i] = node;
                 }
 
-                // Link rowNodes circularly
+                // link rowNodes circularly
                 for (int i = 0; i < 4; ++i) {
                     rowNodes[i]->L = rowNodes[(i + 3) % 4];
                     rowNodes[i]->R = rowNodes[(i + 1) % 4];
@@ -112,7 +110,7 @@ void DLXSolver::cover(ColumnNode* c) {
         for (Node* j = i->R; j != i; j = j->R) {
             j->D->U = j->U;
             j->U->D = j->D;
-            static_cast<ColumnNode*>(j->C)->size--;  // 型別轉換修正
+            static_cast<ColumnNode*>(j->C)->size--;  // Type conversion correction
         }
     }
 }
@@ -120,7 +118,7 @@ void DLXSolver::cover(ColumnNode* c) {
 void DLXSolver::uncover(ColumnNode* c) {
     for (Node* i = c->U; i != c; i = i->U) {
         for (Node* j = i->L; j != i; j = j->L) {
-            static_cast<ColumnNode*>(j->C)->size++;  // 型別轉換修正
+            static_cast<ColumnNode*>(j->C)->size++;  // Type conversion correction
             j->D->U = j;
             j->U->D = j;
         }
@@ -173,23 +171,25 @@ bool DLXSolver::solve(Sudoku& sudoku) {
     bool solved = search(0);
     if (!solved) return false;
 
-    // 解析 solution 回填 sudoku
+    // parse solution backfill sudoku
     for (auto node : solution) {
         int rowID = node->rowID;
-        int num = rowID % 9 + 1;
-        rowID /= 9;
-        int col = rowID % 9;
-        int row = rowID / 9;
+
+        int num = rowID % size + 1;
+        rowID /= size;
+        int col = rowID % size;
+        int row = rowID / size;
 
         sudoku.setValue(row, col, num);
     }
 
-    delete header; // free header node
+    delete header;
     header = nullptr;
 
     return true;
 }
-DLXSolver::DLXSolver(int numThreads) {
-    std::cout << "DLXSolver using " << numThreads << " threads .\n";
-    // 你可以在這裡儲存 numThreads 或設置執行緒池等等
+DLXSolver::DLXSolver(int numThreads)
+    : DLXSolver() // Call the default constructor to initialize
+{
+    std::cout << "DLXSolver using " << numThreads << " threads.\n";
 }

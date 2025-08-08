@@ -7,6 +7,7 @@
 
 class ParallelBacktrackingSolver : public SolverBase {
 public:
+    ParallelBacktrackingSolver() : ParallelBacktrackingSolver(2) {} 
     ParallelBacktrackingSolver(int numThreads = 2);
 
     bool solve(Sudoku& sudoku) override;

@@ -4,7 +4,6 @@
 #include <iostream>
 
 bool BruteForceSolver::solve(Sudoku& sudoku) {
-    // 與 Backtracking 實作類似（也可複用）
     auto emptyCells = sudoku.getEmptyCells();
 
     std::function<bool(size_t)> dfs = [&](size_t index) {
@@ -26,5 +25,4 @@ bool BruteForceSolver::solve(Sudoku& sudoku) {
 
 BruteForceSolver::BruteForceSolver(int numThreads) {
     std::cout << "BruteForceSolver using " << numThreads << " threads .\n";
-    // 你可以在這裡儲存 numThreads 或設置執行緒池等等
 }

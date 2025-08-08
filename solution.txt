@@ -1,0 +1,5 @@
+Solver,Puzzle,TimeMs,Success
+ParallelBacktracking,../Test_Cases/25x25_medium.txt,15707.3,true
+ParallelDLX,../Test_Cases/25x25_medium.txt,3.5344,true
+ParallelBacktracking,../Test_Cases/25x25_hard.txt,15736.9,true
+ParallelDLX,../Test_Cases/25x25_hard.txt,4.3787,true

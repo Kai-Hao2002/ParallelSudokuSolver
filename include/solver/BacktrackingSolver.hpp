@@ -8,6 +8,7 @@ public:
     bool solve(Sudoku& sudoku) override;
     bool solveAll(Sudoku& sudoku, std::vector<Sudoku>& allSolutions) override;
     explicit BacktrackingSolver(int numThreads);
+    BacktrackingSolver() : BacktrackingSolver(1) {} 
     std::unique_ptr<SolverBase> clone() const override {
         return std::make_unique<BacktrackingSolver>(*this);
     }

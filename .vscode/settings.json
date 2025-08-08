@@ -80,6 +80,8 @@
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "typeinfo": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "climits": "cpp",
+        "filesystem": "cpp"
     }
 }

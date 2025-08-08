@@ -7,7 +7,8 @@
                 "${workspaceFolder}/include/**",
                 "${workspaceFolder}/external/taskflow/**",
                 "${workspaceFolder}/include",
-                "${workspaceFolder}/external/taskflow"
+                "${workspaceFolder}/external/taskflow",
+                "${workspaceFolder}/build/_deps/catch2-src/src" 
             ],
             "defines": [
                 "_DEBUG",

@@ -48,5 +48,4 @@ void BacktrackingSolver::backtrackAll(Sudoku& board,
 }
 BacktrackingSolver::BacktrackingSolver(int numThreads) {
     std::cout << "BacktrackingSolver using " << numThreads << " threads .\n";
-    // 你可以在這裡儲存 numThreads 或設置執行緒池等等
 }

@@ -1,5 +1,4 @@
 //include/solver/ParallelDLXSolver.hpp
-// include/solver/ParallelDLXSolver.hpp
 #pragma once
 
 #include "SolverBase.hpp"
@@ -13,11 +12,22 @@
 
 class ParallelDLXSolver : public SolverBase {
 public:
-    explicit ParallelDLXSolver(int numThreads = 2);
+    explicit ParallelDLXSolver(int numThreads);
+    
+    // Change the default constructor to an explicit call to the parameterized constructor
+    ParallelDLXSolver() : ParallelDLXSolver(2) {}
+
+    // Disable automatically generated copy constructors and assignment operators (if necessary)
+    ParallelDLXSolver(const ParallelDLXSolver&) = delete;
+    ParallelDLXSolver& operator=(const ParallelDLXSolver&) = delete;
+
     bool solve(Sudoku& sudoku) override;
     std::unique_ptr<SolverBase> clone() const override;
 
 private:
+    int N;          // add Sudoku size N (9,16,25...)
+    int boxSize;    // add subblock (sqrt(N))
+
     int numThreads_;
     std::mutex solutionMutex;
 

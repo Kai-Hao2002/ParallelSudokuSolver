@@ -5,7 +5,15 @@
 #include <array>
 
 ParallelDLXSolver::ParallelDLXSolver(int numThreads)
-    : numThreads_(numThreads), header(nullptr), nRows(0), nCols(0) {}
+    : numThreads_(numThreads > 0 ? numThreads : std::thread::hardware_concurrency()) {
+    // Debug prints out the number of execution threads
+    static bool printed = false;
+    if (!printed) {
+        std::cout << "ParallelDLXSolver using " << numThreads << " threads .\n";
+        printed = true;
+    }
+
+}
 
 std::unique_ptr<SolverBase> ParallelDLXSolver::clone() const {
     return std::make_unique<ParallelDLXSolver>(numThreads_);
@@ -29,9 +37,11 @@ bool ParallelDLXSolver::solve(Sudoku& sudoku) {
 
 
 void ParallelDLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
-    constexpr int N = 9;
-    constexpr int N2 = N * N;
+    N = sudoku.getSize();            // 9, 16, 25 ...
+    boxSize = static_cast<int>(std::sqrt(N));
+    int N2 = N * N;
     nCols = 4 * N2;
+
     header = new ColumnNode("header");
 
     columnNodes.resize(nCols);
@@ -52,12 +62,12 @@ void ParallelDLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
     }
 
     auto addRow = [&](int row, int col, int num) {
-        int base = (row * 9 + col) * 9 + num;
+        int base = (row * N + col) * N + num;
         std::array<int, 4> cols = {
-            row * 9 + num,                                 // Row constraint
-            81 + col * 9 + num,                            // Column constraint
-            162 + (row / 3 * 3 + col / 3) * 9 + num,      // Block constraint
-            243 + row * 9 + col                            // Cell constraint
+            row * N + num,                                 // Row constraint
+            N2 + col * N + num,                            // Column constraint
+            2 * N2 + (row / boxSize * boxSize + col / boxSize) * N + num, // Block constraint
+            3 * N2 + row * N + col                         // Cell constraint
         };
 
         std::vector<Node*> rowNodes(4);
@@ -65,14 +75,14 @@ void ParallelDLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
             int cIdx = cols[i];
             ColumnNode* colNode = &columnNodes[cIdx];
 
-            nodes.emplace_back();  // 使用 deque 不會導致指標失效
+            nodes.emplace_back();  // Using deque will not cause the indicator to become invalid
             Node* node = &nodes.back();
             rowNodes[i] = node;
 
             node->column = colNode;
             node->rowID = base;
 
-            // 垂直串接
+            // Vertical concatenation
             node->down = colNode;
             node->up = colNode->up;
             colNode->up->down = node;
@@ -81,7 +91,7 @@ void ParallelDLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
             colNode->size++;
         }
 
-        // 水平串接
+        // horizontal concatenation
         for (int i = 0; i < 4; ++i) {
             rowNodes[i]->left = rowNodes[(i + 3) % 4];
             rowNodes[i]->right = rowNodes[(i + 1) % 4];
@@ -90,13 +100,13 @@ void ParallelDLXSolver::buildExactCoverMatrix(const Sudoku& sudoku) {
         rowInfos.push_back({row, col, num});
     };
 
-    for (int row = 0; row < 9; ++row) {
-        for (int col = 0; col < 9; ++col) {
+    for (int row = 0; row < N; ++row) {
+        for (int col = 0; col < N; ++col) {
             int val = sudoku.getValue(row, col);
             if (val != 0) {
                 addRow(row, col, val - 1);
             } else {
-                for (int num = 0; num < 9; ++num) {
+                for (int num = 0; num < N; ++num) {
                     addRow(row, col, num);
                 }
             }
@@ -192,23 +202,24 @@ void ParallelDLXSolver::extractSolutionToSudoku(Sudoku& sudoku) {
 
 
 int ParallelDLXSolver::sudokuToIndex(int row, int col, int num) const {
-    return (row * 9 + col) * 9 + num;
+    return (row * N + col) * N + num;
 }
+
 bool ParallelDLXSolver::parallelSearch(int k) {
     //std::cout << "[Debug] Entering parallelSearch(k=" << k << ")" << std::endl;
 
-    // 解是否找到
+    // whether it has answer
     std::atomic<bool> found{false};
     tf::Executor executor(numThreads_);
     tf::Taskflow taskflow;
 
-    // ✅ 檢查是否所有列都被 cover，代表已找到解
+    // Check if all columns are covered, indicating that the solution has been found
     if (header->right == header) {
         //std::cout << "[Debug] All columns covered. Solution found!" << std::endl;
         return true;
     }
 
-    // 選擇最少 1 節點的列
+    // Select columns with at least 1 node
     ColumnNode* col = nullptr;
     int minSize = INT32_MAX;
     for (ColumnNode* c = static_cast<ColumnNode*>(header->right); c != header; c = static_cast<ColumnNode*>(c->right)) {
@@ -230,7 +241,7 @@ bool ParallelDLXSolver::parallelSearch(int k) {
         return false;
     }
     
-    // 先蒐集該列的所有 row 節點
+    // First collect all row nodes of the column
     std::vector<Node*> candidateRows;
     int countRows = 0;
     for (Node* row = col->down; row != col; row = row->down) {
@@ -241,11 +252,11 @@ bool ParallelDLXSolver::parallelSearch(int k) {
     }
     //std::cout << "[Debug] Total rows under selected column: " << countRows << std::endl;
 
-    // 再 cover 該 column
+    // cover then column
     cover(col);
     //std::cout << "[Debug] Column " << col->name << " covered." << std::endl;
 
-    // 建立平行任務
+    // Creating parallel tasks
     int task_id = 0;
     for (Node* row : candidateRows) {
         int rowID = row->rowID;
@@ -263,9 +274,9 @@ bool ParallelDLXSolver::parallelSearch(int k) {
                 solutionRows.clear();
                 for (Node* n : localSolution) {
                     int idx = n->rowID;
-                    int row = idx / 81;
-                    int col = (idx % 81) / 9;
-                    int num = idx % 9;
+                    int row = idx / (N * N);
+                    int col = (idx % (N * N)) / N;
+                    int num = idx % N;
                     solutionRows.push_back({row, col, num});
                 }
             }
@@ -284,23 +295,27 @@ bool ParallelDLXSolver::parallelSearch(int k) {
 }
 
 void ParallelDLXSolver::cloneFrom(const ParallelDLXSolver& other) {
+    N = other.N;                 
+    boxSize = other.boxSize;     
     nCols = other.nCols;
     nRows = other.nRows;
     rowInfos = other.rowInfos;
 
     columnNodes.clear();
     nodes.clear();
-
     columnNodes.resize(nCols);
+
+    // Initialize ColumnNodes. The name can be omitted if not necessary.
     for (int i = 0; i < nCols; ++i) {
-        columnNodes[i] = ColumnNode("C" + std::to_string(i));
+        columnNodes[i] = ColumnNode(); 
         columnNodes[i].up = columnNodes[i].down = &columnNodes[i];
         columnNodes[i].column = &columnNodes[i];
     }
 
-    header = new ColumnNode("header");
-    header->right = &columnNodes[0];
+    // Connect columnNodes into a horizontal ring chain
+    header = new ColumnNode();
     header->left = &columnNodes[nCols - 1];
+    header->right = &columnNodes[0];
     columnNodes[0].left = header;
     columnNodes[nCols - 1].right = header;
     for (int i = 1; i < nCols; ++i) {
@@ -308,20 +323,20 @@ void ParallelDLXSolver::cloneFrom(const ParallelDLXSolver& other) {
         columnNodes[i - 1].right = &columnNodes[i];
     }
 
-    auto addRow = [&](const RowInfo& info) {
-        int base = sudokuToIndex(info.row, info.col, info.num);
-        std::array<int, 4> cols = {
-            info.row * 9 + info.num,
-            81 + info.col * 9 + info.num,
-            162 + (info.row / 3 * 3 + info.col / 3) * 9 + info.num,
-            243 + info.row * 9 + info.col
+    // Add Row node
+    for (const auto& info : rowInfos) {
+        const int base = sudokuToIndex(info.row, info.col, info.num);
+        const int N2 = N * N;
+        const std::array<int, 4> cols = {
+            info.row * N + info.num,                                    // row constraint
+            N2 + info.col * N + info.num,                               // col constraint
+            2 * N2 + (info.row / boxSize * boxSize + info.col / boxSize) * N + info.num, // box constraint
+            3 * N2 + info.row * N + info.col                            // cell constraint
         };
 
-        std::vector<Node*> rowNodes(4);
+        std::array<Node*, 4> rowNodes;
         for (int i = 0; i < 4; ++i) {
-            int cIdx = cols[i];
-            ColumnNode* colNode = &columnNodes[cIdx];
-
+            ColumnNode* colNode = &columnNodes[cols[i]];
             nodes.emplace_back();
             Node* node = &nodes.back();
             rowNodes[i] = node;
@@ -329,7 +344,7 @@ void ParallelDLXSolver::cloneFrom(const ParallelDLXSolver& other) {
             node->column = colNode;
             node->rowID = base;
 
-            // 垂直串接
+           // Vertical concatenation
             node->down = colNode;
             node->up = colNode->up;
             colNode->up->down = node;
@@ -338,18 +353,16 @@ void ParallelDLXSolver::cloneFrom(const ParallelDLXSolver& other) {
             colNode->size++;
         }
 
+        // Horizontally concatenate four nodes
         for (int i = 0; i < 4; ++i) {
             rowNodes[i]->left = rowNodes[(i + 3) % 4];
             rowNodes[i]->right = rowNodes[(i + 1) % 4];
         }
-    };
-
-    for (const auto& info : rowInfos) {
-        addRow(info);
     }
 }
+
 bool ParallelDLXSolver::searchFromRowID(int rowID, std::vector<Node*>& outSolution) {
-    // 找到對應 row 的 Node*
+    // Find the Node* corresponding to row
     Node* targetRow = nullptr;
     for (Node& node : nodes) {
         if (node.rowID == rowID) {
@@ -362,23 +375,23 @@ bool ParallelDLXSolver::searchFromRowID(int rowID, std::vector<Node*>& outSoluti
 
     outSolution.push_back(targetRow);
 
-    // ✅ 先 cover 該 row 的 column
+    // First cover the column of the row
     ColumnNode* mainCol = targetRow->column;
     cover(mainCol);
 
-    // ✅ cover 該列所有相關 column
+    // Cover all related columns of this column
     std::vector<ColumnNode*> covered;
     for (Node* j = targetRow->right; j != targetRow; j = j->right) {
         cover(j->column);
         covered.push_back(j->column);
     }
 
-    // 進入下一層遞迴
+    // Enter the next level recursively
     if (search(1, outSolution)) {
         return true;
     }
 
-    // 若沒成功，回復狀態
+    // If unsuccessful, return status
     for (auto it = covered.rbegin(); it != covered.rend(); ++it) {
         uncover(*it);
     }

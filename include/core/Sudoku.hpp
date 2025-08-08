@@ -6,7 +6,7 @@
 
 class Sudoku {
 public:
-    Sudoku(int size = 9);
+    explicit Sudoku(int size = 9);
 
     bool loadFromFile(const std::string& filename);
     bool isValid(int row, int col, int val) const;
